@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Display - POS System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f6fa; }
+        .navbar { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar-brand { font-size: 24px; font-weight: bold; }
+        .navbar-menu { display: flex; gap: 20px; list-style: none; }
+        .navbar-menu a { color: white; text-decoration: none; padding: 8px 16px; border-radius: 5px; }
+        .navbar-menu a:hover { background: rgba(255,255,255,0.2); }
+        .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
+        .kds-header { margin-bottom: 30px; }
+        .kds-header h1 { color: #333; font-size: 32px; }
+        .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .order-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-left: 5px solid #f39c12; }
+        .order-card.pending { border-left-color: #f39c12; }
+        .order-card.preparing { border-left-color: #3498db; }
+        .order-card.ready { border-left-color: #2ecc71; }
+        .order-card.served { border-left-color: #95a5a6; opacity: 0.7; }
+        .order-header { display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        .order-number { font-size: 20px; font-weight: bold; color: #333; }
+        .order-time { color: #999; font-size: 14px; }
+        .order-items { margin-bottom: 15px; }
+        .order-item { padding: 8px 0; border-bottom: 1px solid #f5f6fa; }
+        .order-item:last-child { border-bottom: none; }
+        .item-qty { font-weight: bold; color: #e74c3c; margin-right: 10px; }
+        .status-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .status-btn { flex: 1; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
+        .btn-preparing { background: #3498db; }
+        .btn-ready { background: #2ecc71; }
+        .btn-served { background: #95a5a6; }
+        .btn-preparing:hover { background: #2980b9; }
+        .btn-ready:hover { background: #27ae60; }
+        .btn-served:hover { background: #7f8c8d; }
+        .empty-state { text-align: center; padding: 60px; color: #999; }
+        .refresh-info { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 10px 20px; border-radius: 5px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">🍳 Kitchen Display System</div>
+        <ul class="navbar-menu">
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('billing') }}">Billing</a></li>
+            <li><a href="{{ url_for('inventory') }}">Inventory</a></li>
+            <li><a href="{{ url_for('customers') }}">Customers</a></li>
+            <li><a href="{{ url_for('kitchen') }}">Kitchen</a></li>
+            <li><a href="{{ url_for('reports') }}">Reports</a></li>
+            <li><a href="{{ url_for('employees') }}">Employees</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="kds-header">
+            <h1>Kitchen Order Tickets (KOT)</h1>
+            <p style="color: #666; margin-top: 10px;">Real-time order management for kitchen staff</p>
+        </div>
+
+        <div class="orders-grid" id="ordersGrid">
+            {% if orders %}
+                {% for order in orders %}
+                <div class="order-card {{ order.status }}" id="order-{{ order.id }}">
+                    <div class="order-header">
+                        <div class="order-number">{{ order.order_number }}</div>
+                        <div class="order-time">{{ order.created_at.strftime('%H:%M:%S') }}</div>
+                    </div>
+                    <div class="order-items">
+                        {% set items = order.items | tojson %}
+                        <!-- Items will be rendered by JavaScript -->
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong>Status:</strong> 
+                        <span style="text-transform: uppercase; color: {% if order.status == 'pending' %}#f39c12{% elif order.status == 'preparing' %}#3498db{% elif order.status == 'ready' %}#2ecc71{% else %}#999{% endif %};">
+                            {{ order.status }}
+                        </span>
+                    </div>
+                    {% if order.status != 'served' %}
+                    <div class="status-buttons">
+                        {% if order.status == 'pending' %}
+                        <button class="status-btn btn-preparing" onclick="updateStatus({{ order.id }}, 'preparing')">Start Preparing</button>
+                        {% elif order.status == 'preparing' %}
+                        <button class="status-btn btn-ready" onclick="updateStatus({{ order.id }}, 'ready')">Mark Ready</button>
+                        {% elif order.status == 'ready' %}
+                        <button class="status-btn btn-served" onclick="updateStatus({{ order.id }}, 'served')">Mark Served</button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <h2>No pending orders</h2>
+                <p>All caught up! 🎉</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="refresh-info">
+        Auto-refreshing every 10 seconds ⏱️
+    </div>
+
+    <script>
+        // Parse and display order items
+        document.querySelectorAll('.order-card').forEach(card => {
+            const itemsDiv = card.querySelector('.order-items');
+            try {
+                const items = JSON.parse(itemsDiv.textContent.trim());
+                if (Array.isArray(items)) {
+                    itemsDiv.innerHTML = items.map(item => `
+                        <div class="order-item">
+                            <span class="item-qty">${item.quantity}x</span>
+                            ${item.name || 'Item'}
+                        </div>
+                    `).join('');
+                } else {
+                    itemsDiv.innerHTML = '<div class="order-item">No items</div>';
+                }
+            } catch (e) {
+                itemsDiv.innerHTML = '<div class="order-item">Items data unavailable</div>';
+            }
+        });
+
+        // Update order status
+        async function updateStatus(orderId, status) {
+            try {
+                const response = await fetch(`/api/kitchen_order/${orderId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    location.reload();
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+            }
+        }
+
+        // Auto-refresh every 10 seconds
+        setInterval(() => {
+            location.reload();
+        }, 10000);
+    </script>
+</body>
+</html>
