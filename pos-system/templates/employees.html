@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employees - POS System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f6fa; }
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar-brand { font-size: 24px; font-weight: bold; }
+        .navbar-menu { display: flex; gap: 20px; list-style: none; }
+        .navbar-menu a { color: white; text-decoration: none; padding: 8px 16px; border-radius: 5px; }
+        .navbar-menu a:hover { background: rgba(255,255,255,0.2); }
+        .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
+        .employees-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .btn-attendance { background: #2ecc71; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .table-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f5f6fa; font-weight: bold; }
+        .role-admin { color: #e74c3c; font-weight: bold; }
+        .role-manager { color: #f39c12; font-weight: bold; }
+        .role-employee { color: #3498db; }
+        .attendance-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; max-width: 400px; margin: 0 auto; }
+        .attendance-btn { padding: 15px 40px; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; color: white; margin: 10px; }
+        .btn-checkin { background: #2ecc71; }
+        .btn-checkout { background: #e74c3c; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">🏪 POS System - Employees</div>
+        <ul class="navbar-menu">
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('billing') }}">Billing</a></li>
+            <li><a href="{{ url_for('inventory') }}">Inventory</a></li>
+            <li><a href="{{ url_for('customers') }}">Customers</a></li>
+            <li><a href="{{ url_for('kitchen') }}">Kitchen</a></li>
+            <li><a href="{{ url_for('reports') }}">Reports</a></li>
+            <li><a href="{{ url_for('employees') }}">Employees</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="employees-header">
+            <h1>👨‍💼 Employee Management</h1>
+            <button class="btn-attendance" onclick="toggleAttendance()">📅 Mark Attendance</button>
+        </div>
+
+        <!-- Attendance Section (Hidden by default) -->
+        <div id="attendanceSection" style="display: none; margin-bottom: 30px;">
+            <div class="attendance-card">
+                <h2 style="margin-bottom: 20px;">Mark Your Attendance</h2>
+                <p style="color: #666; margin-bottom: 20px;">{{ current_user.username }} ({{ current_user.role }})</p>
+                <button class="attendance-btn btn-checkin" onclick="markAttendance('checkin')">✓ Check In</button>
+                <button class="attendance-btn btn-checkout" onclick="markAttendance('checkout')">✗ Check Out</button>
+                <p id="attendanceMessage" style="margin-top: 20px; color: #666;"></p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h2 style="margin-bottom: 20px;">All Employees</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Phone</th>
+                        <th>Salary</th>
+                        <th>Joined Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email or 'N/A' }}</td>
+                        <td class="role-{{ user.role }}">{{ user.role.upper() }}</td>
+                        <td>{{ user.phone or 'N/A' }}</td>
+                        <td>₹{{ "%.2f"|format(user.salary) }}</td>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function toggleAttendance() {
+            const section = document.getElementById('attendanceSection');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function markAttendance(type) {
+            try {
+                const response = await fetch('/api/attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: type })
+                });
+                const result = await response.json();
+                
+                const messageEl = document.getElementById('attendanceMessage');
+                if (result.success) {
+                    messageEl.textContent = type === 'checkin' 
+                        ? '✓ Checked in successfully!' 
+                        : '✗ Checked out successfully!';
+                    messageEl.style.color = '#2ecc71';
+                } else {
+                    messageEl.textContent = 'Error marking attendance';
+                    messageEl.style.color = '#e74c3c';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
