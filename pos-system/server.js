@@ -14,6 +14,10 @@ const io = new Server(server, {
   }
 });
 
+// Share the Socket.IO instance with services/routes via the socket service
+const socketService = require('./services/socketService');
+socketService.init(io);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -21,16 +25,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Import and initialize database first
 const dbModule = require('./database/database');
-
-let dbInitialized = false;
-
-dbModule.initializeDatabase().then(() => {
-  dbInitialized = true;
-  console.log('Database initialized successfully');
-}).catch((err) => {
-  console.error('Failed to initialize database:', err);
-  process.exit(1);
-});
 
 // Import routes (they will use the db module)
 const billingRoutes = require('./routes/billing');
@@ -41,6 +35,9 @@ const kitchenRoutes = require('./routes/kitchen');
 const reportRoutes = require('./routes/reports');
 const authRoutes = require('./routes/auth');
 const paymentRoutes = require('./routes/payment');
+const settingsRoutes = require('./routes/settings');
+const tableRoutes = require('./routes/tables');
+const orderRoutes = require('./routes/orders');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -51,6 +48,9 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/kitchen', kitchenRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/tables', tableRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
@@ -74,11 +74,18 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start server
+// Start server only after the database is ready
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`POS Server running on http://localhost:${PORT}`);
-  console.log('Offline mode enabled - All data stored locally in SQLite');
+
+dbModule.initializeDatabase().then(() => {
+  console.log('Database initialized successfully');
+  server.listen(PORT, () => {
+    console.log(`POS Server running on http://localhost:${PORT}`);
+    console.log('Offline mode enabled - All data stored locally in SQLite');
+  });
+}).catch((err) => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
 });
 
 module.exports = { app, io };

@@ -368,7 +368,7 @@
 </head>
 <body>
     <nav class="navbar no-print">
-        <div class="navbar-brand">🏪 POS System</div>
+        <div class="navbar-brand">POS System</div>
         <ul class="navbar-menu">
             <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
             <li><a href="{{ url_for('billing') }}">Billing</a></li>
@@ -389,9 +389,9 @@
             <!-- Products Section -->
             <div class="products-section">
                 <div class="section-header">
-                    <h2>📦 Products</h2>
+                    <h2>Products</h2>
                 </div>
-                <input type="text" class="search-bar" id="productSearch" placeholder="🔍 Search products or scan barcode...">
+                <input type="text" class="search-bar" id="productSearch" placeholder="Search products or scan barcode...">
                 <div class="products-grid" id="productsGrid">
                     <!-- Products will be loaded here -->
                 </div>
@@ -400,7 +400,7 @@
             <!-- Cart Section -->
             <div class="cart-section">
                 <div class="section-header">
-                    <h2>🛒 Current Bill</h2>
+                    <h2>Current Bill</h2>
                 </div>
 
                 <div class="cart-items">
@@ -446,15 +446,15 @@
                     <div class="form-group" style="margin-top: 15px;">
                         <label for="paymentMethod">Payment Method</label>
                         <select id="paymentMethod">
-                            <option value="cash">💵 Cash</option>
-                            <option value="card">💳 Credit/Debit Card</option>
-                            <option value="upi">📱 UPI</option>
-                            <option value="wallet">👛 Wallet</option>
+                            <option value="cash">Cash</option>
+                            <option value="card">Credit/Debit Card</option>
+                            <option value="upi">UPI</option>
+                            <option value="wallet">Wallet</option>
                         </select>
                     </div>
 
                     <button class="checkout-btn" id="checkoutBtn" onclick="processCheckout()">
-                        ✅ Complete Sale
+                        Complete Sale
                     </button>
                 </div>
             </div>
@@ -464,12 +464,12 @@
     <!-- Invoice Modal -->
     <div class="modal" id="invoiceModal">
         <div class="modal-content">
-            <h2 style="text-align: center; color: #2ecc71;">✅ Payment Successful!</h2>
+            <h2 style="text-align: center; color: #2ecc71;">Payment Successful!</h2>
             <div class="invoice" id="invoiceContent">
                 <!-- Invoice will be generated here -->
             </div>
             <div style="margin-top: 20px; text-align: center;">
-                <button class="print-btn" onclick="printInvoice()">🖨️ Print Invoice</button>
+                <button class="print-btn" onclick="printInvoice()">Print Invoice</button>
                 <button class="close-modal-btn" onclick="closeInvoiceModal()">Close</button>
             </div>
         </div>
@@ -645,7 +645,7 @@
 
             invoiceContent.innerHTML = `
                 <div class="invoice-header">
-                    <h1>🏪 POS System</h1>
+                    <h1>POS System</h1>
                     <p>123 Business Street, City - 123456</p>
                     <p>Phone: +91 98765 43210</p>
                 </div>
@@ -682,7 +682,7 @@
                 </div>
                 <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px dashed #ccc;">
                     <p>Thank you for your business!</p>
-                    <p>Please visit again 😊</p>
+                    <p>Please visit again.</p>
                 </div>
             `;
 

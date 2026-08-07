@@ -2,24 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/database');
-
-// Auth middleware
-const authMiddleware = (req, res, next) => {
-  const jwt = require('jsonwebtoken');
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const authMiddleware = require('../middleware/auth');
 
 // Get all products
 router.get('/products', authMiddleware, async (req, res) => {
@@ -77,7 +60,7 @@ router.post('/products', authMiddleware, async (req, res) => {
   try {
     const {
       name, description, category, barcode, price, costPrice,
-      taxRate, stockQuantity, reorderLevel, unit, supplierId, imageUrl
+      taxRate, stockQuantity, reorderLevel, unit, supplierId, imageUrl, station
     } = req.body;
 
     const id = uuidv4();
@@ -85,12 +68,12 @@ router.post('/products', authMiddleware, async (req, res) => {
     await db.run(
       `INSERT INTO products (
         id, name, description, category, barcode, price, cost_price,
-        tax_rate, stock_quantity, reorder_level, unit, supplier_id, image_url
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        tax_rate, stock_quantity, reorder_level, unit, supplier_id, image_url, station
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id, name, description, category, barcode, price, costPrice,
         taxRate || 18, stockQuantity || 0, reorderLevel || 10, 
-        unit || 'pcs', supplierId, imageUrl
+        unit || 'pcs', supplierId, imageUrl, station || 'main'
       ]
     );
 
@@ -106,20 +89,20 @@ router.put('/products/:id', authMiddleware, async (req, res) => {
   try {
     const {
       name, description, category, barcode, price, costPrice,
-      taxRate, stockQuantity, reorderLevel, unit, supplierId, imageUrl
+      taxRate, stockQuantity, reorderLevel, unit, supplierId, imageUrl, station
     } = req.body;
 
     await db.run(
       `UPDATE products SET
         name = ?, description = ?, category = ?, barcode = ?,
         price = ?, cost_price = ?, tax_rate = ?, stock_quantity = ?,
-        reorder_level = ?, unit = ?, supplier_id = ?, image_url = ?,
+        reorder_level = ?, unit = ?, supplier_id = ?, image_url = ?, station = ?,
         updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [
         name, description, category, barcode, price, costPrice,
         taxRate, stockQuantity, reorderLevel, unit, supplierId, imageUrl,
-        req.params.id
+        station || 'main', req.params.id
       ]
     );
 

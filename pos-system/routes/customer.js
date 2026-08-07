@@ -2,23 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/database');
-
-const authMiddleware = (req, res, next) => {
-  const jwt = require('jsonwebtoken');
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const authMiddleware = require('../middleware/auth');
 
 // Get all customers
 router.get('/', authMiddleware, async (req, res) => {

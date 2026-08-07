@@ -1,0 +1,17 @@
+# Node.js dependencies
+node_modules/
+
+# Database files
+database/*.db
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+
+# Python (Flask alt implementation)
+venv/
+__pycache__/
+*.pyc

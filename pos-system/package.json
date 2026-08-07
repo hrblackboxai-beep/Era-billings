@@ -1,13 +1,20 @@
 {
   "name": "pos-system",
   "version": "1.0.0",
-  "description": "## Overview A comprehensive Point of Sale (POS) system designed to work completely offline with all the features mentioned.",
-  "main": "index.js",
+  "description": "Offline-first Point of Sale system with billing, inventory, kitchen display, customers, employees, reports and payments.",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "pos",
+    "point-of-sale",
+    "offline",
+    "billing",
+    "inventory",
+    "sqlite"
+  ],
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.3",

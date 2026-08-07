@@ -30,7 +30,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="navbar-brand">🏪 POS System - Employees</div>
+        <div class="navbar-brand">POS System - Employees</div>
         <ul class="navbar-menu">
             <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
             <li><a href="{{ url_for('billing') }}">Billing</a></li>
@@ -44,8 +44,8 @@
 
     <div class="container">
         <div class="employees-header">
-            <h1>👨‍💼 Employee Management</h1>
-            <button class="btn-attendance" onclick="toggleAttendance()">📅 Mark Attendance</button>
+            <h1>Employee Management</h1>
+            <button class="btn-attendance" onclick="toggleAttendance()">Mark Attendance</button>
         </div>
 
         <!-- Attendance Section (Hidden by default) -->
@@ -53,8 +53,8 @@
             <div class="attendance-card">
                 <h2 style="margin-bottom: 20px;">Mark Your Attendance</h2>
                 <p style="color: #666; margin-bottom: 20px;">{{ current_user.username }} ({{ current_user.role }})</p>
-                <button class="attendance-btn btn-checkin" onclick="markAttendance('checkin')">✓ Check In</button>
-                <button class="attendance-btn btn-checkout" onclick="markAttendance('checkout')">✗ Check Out</button>
+                <button class="attendance-btn btn-checkin" onclick="markAttendance('checkin')">Check In</button>
+                <button class="attendance-btn btn-checkout" onclick="markAttendance('checkout')">Check Out</button>
                 <p id="attendanceMessage" style="margin-top: 20px; color: #666;"></p>
             </div>
         </div>
@@ -108,8 +108,8 @@
                 const messageEl = document.getElementById('attendanceMessage');
                 if (result.success) {
                     messageEl.textContent = type === 'checkin' 
-                        ? '✓ Checked in successfully!' 
-                        : '✗ Checked out successfully!';
+                        ? 'Checked in successfully!' 
+                        : 'Checked out successfully!';
                     messageEl.style.color = '#2ecc71';
                 } else {
                     messageEl.textContent = 'Error marking attendance';

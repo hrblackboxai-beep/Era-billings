@@ -42,7 +42,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="navbar-brand">🍳 Kitchen Display System</div>
+        <div class="navbar-brand">Kitchen Display System</div>
         <ul class="navbar-menu">
             <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
             <li><a href="{{ url_for('billing') }}">Billing</a></li>
@@ -94,14 +94,14 @@
             {% else %}
             <div class="empty-state">
                 <h2>No pending orders</h2>
-                <p>All caught up! 🎉</p>
+                <p>All caught up!</p>
             </div>
             {% endif %}
         </div>
     </div>
 
     <div class="refresh-info">
-        Auto-refreshing every 10 seconds ⏱️
+        Auto-refreshing every 10 seconds
     </div>
 
     <script>

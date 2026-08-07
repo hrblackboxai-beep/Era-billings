@@ -12,12 +12,22 @@
     <!-- Login Screen -->
     <div id="login-screen" class="screen active">
         <div class="login-container">
-            <h1>🏪 POS System</h1>
-            <p>Offline-First Point of Sale</p>
-            <form id="login-form">
-                <input type="text" id="username" placeholder="Username" required>
-                <input type="password" id="password" placeholder="Password" required>
-                <button type="submit">Login</button>
+            <div class="login-logo">
+                <span class="logo-mark">P</span>
+            </div>
+            <h1>POS System</h1>
+            <p class="login-subtitle">Offline-First Point of Sale</p>
+            <div id="login-error" class="login-error" hidden></div>
+            <form id="login-form" autocomplete="on">
+                <div class="field">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter username" required>
+                </div>
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="login-btn">Sign In</button>
             </form>
             <p class="demo-hint">Demo: admin / admin123</p>
         </div>
@@ -26,189 +36,619 @@
     <!-- Main App -->
     <div id="app-screen" class="screen">
         <!-- Sidebar Navigation -->
-        <nav class="sidebar">
-            <div class="logo">🏪 POS System</div>
+        <nav class="sidebar" id="sidebar">
+            <div class="logo">POS System</div>
             <ul class="nav-menu">
-                <li data-page="billing" class="active">📝 Billing</li>
-                <li data-page="inventory">📦 Inventory</li>
-                <li data-page="kitchen">🍳 Kitchen</li>
-                <li data-page="customers">👥 Customers</li>
-                <li data-page="employees">👨‍💼 Employees</li>
-                <li data-page="reports">📊 Reports</li>
-                <li data-page="settings">⚙️ Settings</li>
+                <li data-page="billing" class="active">Billing</li>
+                <li data-page="tables">Tables</li>
+                <li data-page="orders">Orders</li>
+                <li data-page="inventory">Inventory</li>
+                <li data-page="kitchen">Kitchen</li>
+                <li data-page="customers">Customers</li>
+                <li data-page="employees" data-role="admin">Employees</li>
+                <li data-page="reports">Reports</li>
+                <li data-page="settings" data-role="admin">Settings</li>
             </ul>
             <div class="user-info">
-                <span id="user-name"></span>
-                <button id="logout-btn">Logout</button>
+                <div class="user-avatar" id="user-avatar">U</div>
+                <div class="user-meta">
+                    <span id="user-name"></span>
+                    <small id="user-role"></small>
+                </div>
+                <button id="logout-btn" class="btn btn-danger btn-sm">Logout</button>
             </div>
         </nav>
+
+        <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Toggle navigation">Menu</button>
 
         <!-- Main Content Area -->
         <main class="content">
             <!-- Billing Page -->
             <div id="billing-page" class="page active">
+                <div class="page-heading">
+                    <h1>Billing</h1>
+                    <p>Scan a barcode or click a product to add it to the bill.</p>
+                </div>
                 <div class="billing-container">
+                    <div class="order-bar">
+                        <div class="order-bar-field">
+                            <label for="table-select">Table</label>
+                            <select id="table-select">
+                                <option value="">Walk-in (no table)</option>
+                            </select>
+                        </div>
+                        <div id="order-banner" class="order-banner" hidden>
+                            <div class="order-banner-info">
+                                <strong id="order-banner-title">Order</strong>
+                                <span class="badge badge-secondary" id="order-banner-status"></span>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="loadOrderIntoCart(activeOrder.id)">Load Order</button>
+                        </div>
+                    </div>
+
                     <div class="product-search">
                         <input type="text" id="barcode-input" placeholder="Scan barcode or search products..." autofocus>
-                        <button onclick="searchProducts()">Search</button>
+                        <button onclick="searchProducts()" class="btn btn-primary">Search</button>
+                        <button onclick="clearSearch()" class="btn btn-outline" title="Clear search">Clear</button>
                     </div>
-                    
+
                     <div class="billing-grid">
                         <div class="products-panel">
-                            <h3>Products</h3>
+                            <div class="panel-heading">
+                                <h3>Products</h3>
+                                <span id="product-count" class="muted"></span>
+                            </div>
                             <div id="products-list" class="products-grid"></div>
+                            <div id="products-empty" class="empty-state" hidden>
+                                <p>No products found.</p>
+                            </div>
                         </div>
-                        
+
                         <div class="cart-panel">
-                            <h3>Current Bill</h3>
+                            <div class="panel-heading">
+                                <h3>Current Bill</h3>
+                                <button class="btn btn-outline btn-sm" onclick="clearCart()" id="clear-cart-btn">Clear</button>
+                            </div>
                             <div id="cart-items" class="cart-items"></div>
-                            
+                            <div id="cart-empty" class="empty-state">
+                                <p>Your bill is empty.</p>
+                                <p class="muted small">Add products to get started.</p>
+                            </div>
+
                             <div class="cart-totals">
                                 <div class="total-row">
-                                    <span>Subtotal:</span>
-                                    <span id="subtotal">₹0.00</span>
+                                    <span>Subtotal</span>
+                                    <span id="subtotal">Rs 0.00</span>
                                 </div>
                                 <div class="total-row">
-                                    <span>Discount:</span>
-                                    <input type="number" id="discount-input" placeholder="%" min="0" max="100" onchange="updateTotals()">
+                                    <span>Discount</span>
+                                    <div class="total-input">
+                                        <input type="number" id="discount-input" placeholder="%" min="0" max="100" step="0.5" onchange="updateTotals()">
+                                    </div>
                                 </div>
                                 <div class="total-row">
-                                    <span>Tax (GST):</span>
-                                    <span id="tax-amount">₹0.00</span>
+                                    <span>Tax (GST)</span>
+                                    <span id="tax-amount">Rs 0.00</span>
                                 </div>
                                 <div class="total-row grand-total">
-                                    <span>Total:</span>
-                                    <span id="grand-total">₹0.00</span>
+                                    <span>Total</span>
+                                    <span id="grand-total">Rs 0.00</span>
                                 </div>
                             </div>
-                            
+
                             <div class="payment-section">
-                                <select id="payment-method">
-                                    <option value="cash">Cash</option>
-                                    <option value="card">Card</option>
-                                    <option value="upi">UPI</option>
-                                    <option value="wallet">Wallet</option>
-                                </select>
-                                <input type="number" id="paid-amount" placeholder="Amount received">
-                                <button onclick="processPayment()" class="checkout-btn">Checkout</button>
-                                <button onclick="splitBill()" class="split-btn">Split Bill</button>
+                                <div class="payment-row">
+                                    <select id="payment-method">
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                        <option value="upi">UPI</option>
+                                        <option value="wallet">Wallet</option>
+                                    </select>
+                                    <input type="number" id="paid-amount" placeholder="Amount received" min="0" step="0.01">
+                                </div>
+                                <div class="payment-row">
+                                    <select id="customer-select">
+                                        <option value="">Walk-in customer</option>
+                                    </select>
+                                </div>
+                                <button onclick="sendToKitchen()" class="btn btn-primary btn-block" id="send-kitchen-btn">Send to Kitchen</button>
+                                <button onclick="processPayment()" class="btn btn-success btn-block" id="checkout-btn">Checkout</button>
+                                <button onclick="openSplitModal()" class="btn btn-warning btn-block">Split Bill</button>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Tables Page -->
+            <div id="tables-page" class="page">
+                <div class="page-heading flex-between">
+                    <div>
+                        <h1>Table Management</h1>
+                        <p>Manage restaurant tables, seating and live occupancy.</p>
+                    </div>
+                    <div class="actions">
+                        <button onclick="showTableModal()" class="btn btn-primary">Add Table</button>
+                    </div>
+                </div>
+                <div id="table-stats" class="report-stats"></div>
+                <div id="tables-grid" class="tables-grid"></div>
+                <div id="tables-empty" class="empty-state" hidden>
+                    <p>No tables found. Add your first table to get started.</p>
+                </div>
+            </div>
+
+            <!-- Orders Page -->
+            <div id="orders-page" class="page">
+                <div class="page-heading flex-between">
+                    <div>
+                        <h1>Orders</h1>
+                        <p>Track table orders and their kitchen status.</p>
+                    </div>
+                    <div class="actions">
+                        <button onclick="startNewOrder()" class="btn btn-primary">New Order</button>
+                    </div>
+                </div>
+                <div class="report-tabs" id="order-filter-tabs">
+                    <button data-filter="all" class="active">All</button>
+                    <button data-filter="active">Active</button>
+                    <button data-filter="open">Open</button>
+                    <button data-filter="sent">In Kitchen</button>
+                    <button data-filter="served">Served</button>
+                    <button data-filter="closed">Billed</button>
+                    <button data-filter="void">Void</button>
+                </div>
+                <div id="orders-list" class="orders-list"></div>
+                <div id="orders-empty" class="empty-state" hidden>
+                    <p>No orders found.</p>
                 </div>
             </div>
 
             <!-- Inventory Page -->
             <div id="inventory-page" class="page">
-                <div class="inventory-header">
-                    <h2>Inventory Management</h2>
-                    <button onclick="showAddProductModal()">+ Add Product</button>
-                    <button onclick="toggleLowStock()">Show Low Stock</button>
+                <div class="page-heading flex-between">
+                    <div>
+                        <h1>Inventory Management</h1>
+                        <p>Manage your products and stock levels.</p>
+                    </div>
+                    <div class="actions">
+                        <button onclick="toggleLowStock()" class="btn btn-outline" id="low-stock-btn">Show Low Stock</button>
+                        <button onclick="showProductModal()" class="btn btn-primary">Add Product</button>
+                    </div>
                 </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Barcode</th>
-                            <th>Category</th>
-                            <th>Price</th>
-                            <th>Stock</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventory-table"></tbody>
-                </table>
+                <div class="product-search">
+                    <input type="text" id="inventory-search" placeholder="Search inventory..." onkeyup="filterInventory(this.value)">
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Barcode</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Kitchen Page -->
             <div id="kitchen-page" class="page">
-                <h2>Kitchen Display System</h2>
+                <div class="page-heading">
+                    <h1>Kitchen Display System</h1>
+                    <p>Live order tickets updated in real time.</p>
+                </div>
+                <div class="report-tabs" id="station-tabs">
+                    <button data-station="all" class="active">All</button>
+                    <button data-station="grill">Grill</button>
+                    <button data-station="bar">Bar</button>
+                    <button data-station="dessert">Dessert</button>
+                    <button data-station="main">Main</button>
+                </div>
                 <div id="kds-board" class="kds-board"></div>
+                <div id="kitchen-empty" class="empty-state" hidden>
+                    <p>No kitchen orders.</p>
+                </div>
             </div>
 
             <!-- Customers Page -->
             <div id="customers-page" class="page">
-                <div class="page-header">
-                    <h2>Customer Management</h2>
-                    <button onclick="showAddCustomerModal()">+ Add Customer</button>
+                <div class="page-heading flex-between">
+                    <div>
+                        <h1>Customer Management</h1>
+                        <p>Track loyalty points, membership and purchase history.</p>
+                    </div>
+                    <button onclick="showCustomerModal()" class="btn btn-primary">Add Customer</button>
                 </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Phone</th>
-                            <th>Email</th>
-                            <th>Loyalty Points</th>
-                            <th>Membership</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="customers-table"></tbody>
-                </table>
+                <div class="product-search">
+                    <input type="text" id="customer-search" placeholder="Search customers..." onkeyup="filterCustomers(this.value)">
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Loyalty Points</th>
+                                <th>Membership</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-table"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Employees Page -->
             <div id="employees-page" class="page">
-                <div class="page-header">
-                    <h2>Employee Management</h2>
-                    <button onclick="markAttendance()">Mark Attendance</button>
+                <div class="page-heading flex-between">
+                    <div>
+                        <h1>Employee Management</h1>
+                        <p>Manage staff, attendance and performance.</p>
+                    </div>
+                    <button onclick="toggleAttendancePanel()" class="btn btn-primary" id="attendance-toggle-btn">Mark Attendance</button>
                 </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Role</th>
-                            <th>Phone</th>
-                            <th>Salary</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="employees-table"></tbody>
-                </table>
+                <div id="attendance-panel" class="card" hidden>
+                    <h3>Mark Attendance</h3>
+                    <div class="attendance-form">
+                        <select id="attendance-employee">
+                            <option value="">Select employee...</option>
+                        </select>
+                        <select id="attendance-type">
+                            <option value="check-in">Check In</option>
+                            <option value="check-out">Check Out</option>
+                        </select>
+                        <button onclick="markAttendance()" class="btn btn-primary">Submit</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Phone</th>
+                                <th>Salary</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employees-table"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Reports Page -->
             <div id="reports-page" class="page">
-                <h2>Reports & Analytics</h2>
-                <div class="report-tabs">
-                    <button onclick="loadReport('daily')" class="active">Daily Sales</button>
-                    <button onclick="loadReport('weekly')">Weekly</button>
-                    <button onclick="loadReport('monthly')">Monthly</button>
-                    <button onclick="loadReport('profit')">Profit</button>
-                    <button onclick="loadReport('tax')">Tax (GST)</button>
+                <div class="page-heading">
+                    <h1>Reports &amp; Analytics</h1>
+                    <p>Sales, profit and tax insights for your business.</p>
                 </div>
-                <div id="report-content" class="report-content"></div>
+                <div class="report-tabs">
+                    <button onclick="loadReport('daily')" class="active" data-report="daily">Daily Sales</button>
+                    <button onclick="loadReport('weekly')" data-report="weekly">Weekly</button>
+                    <button onclick="loadReport('monthly')" data-report="monthly">Monthly</button>
+                    <button onclick="loadReport('profit')" data-report="profit">Profit</button>
+                    <button onclick="loadReport('tax')" data-report="tax">Tax (GST)</button>
+                    <button onclick="loadReport('orders')" data-report="orders">Orders</button>
+                </div>
+                <div id="report-content" class="report-content">
+                    <div class="empty-state">
+                        <p>Loading report...</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Settings Page -->
             <div id="settings-page" class="page">
-                <h2>Settings</h2>
-                <div class="settings-section">
-                    <h3>Store Information</h3>
-                    <form id="settings-form">
-                        <label>Store Name:</label>
-                        <input type="text" id="store-name">
-                        <label>GST Number:</label>
-                        <input type="text" id="gst-number">
-                        <label>Currency:</label>
-                        <select id="currency">
-                            <option value="INR">INR (₹)</option>
-                            <option value="USD">USD ($)</option>
-                        </select>
-                        <button type="submit">Save Settings</button>
-                    </form>
+                <div class="page-heading">
+                    <h1>Settings</h1>
+                    <p>Configure your store information and data management.</p>
                 </div>
-                <div class="settings-section">
-                    <h3>Backup & Sync</h3>
-                    <button onclick="backupData()">Backup Data</button>
-                    <button onclick="exportData()">Export Data</button>
-                    <p class="status-indicator">● Offline Mode Active</p>
+                <div class="settings-grid">
+                    <div class="card">
+                        <h3>Store Information</h3>
+                        <form id="settings-form">
+                            <div class="field">
+                                <label for="store-name">Store Name</label>
+                                <input type="text" id="store-name" placeholder="My Store">
+                            </div>
+                            <div class="field">
+                                <label for="gst-number">GST Number</label>
+                                <input type="text" id="gst-number" placeholder="GSTIN">
+                            </div>
+                            <div class="field">
+                                <label for="invoice-prefix">Invoice Prefix</label>
+                                <input type="text" id="invoice-prefix" placeholder="INV">
+                            </div>
+                            <div class="field">
+                                <label for="gst-rate">Default GST Rate (%)</label>
+                                <input type="number" id="gst-rate" placeholder="18" min="0" max="100" step="0.5">
+                            </div>
+                            <div class="field">
+                                <label for="currency">Currency</label>
+                                <select id="currency">
+                                    <option value="INR">INR (Rs)</option>
+                                    <option value="USD">USD ($)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Settings</button>
+                        </form>
+                    </div>
+                    <div class="card">
+                        <h3>Backup &amp; Sync</h3>
+                        <p class="muted small" style="margin-bottom: 15px;">All data is stored locally on this device in an offline SQLite database.</p>
+                        <div class="settings-actions">
+                            <button onclick="backupData()" class="btn btn-outline">Backup Data</button>
+                            <button onclick="exportData()" class="btn btn-outline">Export Data</button>
+                        </div>
+                        <div class="status-indicator">
+                            <span class="dot"></span> Offline Mode Active
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Login Audit Log</h3>
+                        <p class="muted small" style="margin-bottom: 15px;">Recent login attempts, including failed ones.</p>
+                        <div id="login-logs" class="login-logs">
+                            <p class="muted small">Loading...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
+
+    <!-- Product Modal (Add / Edit) -->
+    <div class="modal" id="product-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="product-modal-title">Add Product</h3>
+                <button class="modal-close" onclick="closeProductModal()" aria-label="Close">&times;</button>
+            </div>
+            <form id="product-form">
+                <input type="hidden" id="product-id">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="product-name">Name *</label>
+                        <input type="text" id="product-name" required>
+                    </div>
+                    <div class="field">
+                        <label for="product-barcode">Barcode</label>
+                        <input type="text" id="product-barcode">
+                    </div>
+                    <div class="field">
+                        <label for="product-category">Category</label>
+                        <input type="text" id="product-category">
+                    </div>
+                    <div class="field">
+                        <label for="product-unit">Unit</label>
+                        <input type="text" id="product-unit" value="pcs">
+                    </div>
+                    <div class="field">
+                        <label for="product-price">Price *</label>
+                        <input type="number" id="product-price" required min="0" step="0.01">
+                    </div>
+                    <div class="field">
+                        <label for="product-cost">Cost Price</label>
+                        <input type="number" id="product-cost" min="0" step="0.01">
+                    </div>
+                    <div class="field">
+                        <label for="product-tax">Tax Rate (%)</label>
+                        <input type="number" id="product-tax" value="18" min="0" max="100" step="0.5">
+                    </div>
+                    <div class="field">
+                        <label for="product-stock">Stock Quantity</label>
+                        <input type="number" id="product-stock" min="0">
+                    </div>
+                    <div class="field">
+                        <label for="product-reorder">Reorder Level</label>
+                        <input type="number" id="product-reorder" value="10" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeProductModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="product-save-btn">Save Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Customer Modal (Add) -->
+    <div class="modal" id="customer-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Customer</h3>
+                <button class="modal-close" onclick="closeCustomerModal()" aria-label="Close">&times;</button>
+            </div>
+            <form id="customer-form">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="customer-name">Name *</label>
+                        <input type="text" id="customer-name" required>
+                    </div>
+                    <div class="field">
+                        <label for="customer-phone">Phone</label>
+                        <input type="tel" id="customer-phone">
+                    </div>
+                    <div class="field">
+                        <label for="customer-email">Email</label>
+                        <input type="email" id="customer-email">
+                    </div>
+                    <div class="field">
+                        <label for="customer-birthday">Birthday</label>
+                        <input type="date" id="customer-birthday">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="customer-address">Address</label>
+                    <textarea id="customer-address" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label for="customer-notes">Notes</label>
+                    <textarea id="customer-notes" rows="2"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeCustomerModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Customer Detail Modal -->
+    <div class="modal" id="customer-detail-modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 id="detail-customer-name">Customer Details</h3>
+                <button class="modal-close" onclick="closeCustomerDetailModal()" aria-label="Close">&times;</button>
+            </div>
+            <div id="customer-detail-body"></div>
+        </div>
+    </div>
+
+    <!-- Split Bill Modal -->
+    <div class="modal" id="split-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Split Bill</h3>
+                <button class="modal-close" onclick="closeSplitModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="split-summary">
+                <span>Bill Total</span>
+                <strong id="split-total">Rs 0.00</strong>
+            </div>
+            <div id="split-entries"></div>
+            <div class="split-summary">
+                <span>Allocated</span>
+                <strong id="split-allocated">Rs 0.00</strong>
+            </div>
+            <div class="split-actions">
+                <button onclick="addSplitEntry()" class="btn btn-outline">Add Split</button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeSplitModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmSplit()">Confirm Split</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Modal -->
+    <div class="modal" id="receipt-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Payment Successful</h3>
+                <button class="modal-close" onclick="closeReceiptModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="receipt" id="receipt-content"></div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="printReceipt()">Print Receipt</button>
+                <button class="btn btn-outline" onclick="closeReceiptModal()">New Bill</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Modal (Add / Edit) -->
+    <div class="modal" id="table-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="table-modal-title">Add Table</h3>
+                <button class="modal-close" onclick="closeTableModal()" aria-label="Close">&times;</button>
+            </div>
+            <form id="table-form">
+                <input type="hidden" id="table-id">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="table-number">Table Number *</label>
+                        <input type="text" id="table-number" placeholder="T1" required>
+                    </div>
+                    <div class="field">
+                        <label for="table-capacity">Capacity</label>
+                        <input type="number" id="table-capacity" value="2" min="1" max="100">
+                    </div>
+                    <div class="field">
+                        <label for="table-zone">Zone / Area</label>
+                        <input type="text" id="table-zone" placeholder="Main Hall">
+                    </div>
+                    <div class="field">
+                        <label for="table-status">Status</label>
+                        <select id="table-status">
+                            <option value="available">Available</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="occupied">Occupied</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeTableModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="table-save-btn">Save Table</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table Detail Modal -->
+    <div class="modal" id="table-detail-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="detail-table-title">Table Details</h3>
+                <button class="modal-close" onclick="closeTableDetailModal()" aria-label="Close">&times;</button>
+            </div>
+            <div id="table-detail-body"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeTableDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transfer Order Modal -->
+    <div class="modal" id="transfer-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="transfer-modal-title">Transfer Order</h3>
+                <button class="modal-close" onclick="closeTransferModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="field">
+                <label for="transfer-table">Target Table</label>
+                <select id="transfer-table"></select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeTransferModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmTransfer()">Transfer Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Split Order Modal -->
+    <div class="modal" id="order-split-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Split Order</h3>
+                <button class="modal-close" onclick="closeOrderSplitModal()" aria-label="Close">&times;</button>
+            </div>
+            <p class="muted small" style="margin: 0 0 12px;">Select items to move to a new order. Only items not yet sent to the kitchen can be split.</p>
+            <div class="field">
+                <label for="split-target-table">Move to Table</label>
+                <select id="split-target-table">
+                    <option value="">Walk-in (no table)</option>
+                </select>
+            </div>
+            <div id="order-split-items"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeOrderSplitModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmOrderSplit()">Move Items</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="toast-container" class="toast-container"></div>
 
     <script src="/js/app.js"></script>
 </body>

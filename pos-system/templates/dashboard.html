@@ -191,7 +191,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="navbar-brand">🏪 POS System</div>
+        <div class="navbar-brand">POS System</div>
         <ul class="navbar-menu">
             <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
             <li><a href="{{ url_for('billing') }}">Billing</a></li>
@@ -238,18 +238,18 @@
         <div class="quick-actions">
             <h2>Quick Actions</h2>
             <div class="action-buttons">
-                <a href="{{ url_for('billing') }}" class="action-btn btn-billing">📝 New Billing</a>
-                <a href="{{ url_for('inventory') }}" class="action-btn btn-inventory">📦 Inventory</a>
-                <a href="{{ url_for('customers') }}" class="action-btn btn-customers">👥 Customers</a>
-                <a href="{{ url_for('kitchen') }}" class="action-btn btn-kitchen">🍳 Kitchen</a>
-                <a href="{{ url_for('reports') }}" class="action-btn btn-reports">📊 Reports</a>
-                <a href="{{ url_for('employees') }}" class="action-btn btn-employees">👨‍💼 Employees</a>
+                <a href="{{ url_for('billing') }}" class="action-btn btn-billing"> New Billing</a>
+                <a href="{{ url_for('inventory') }}" class="action-btn btn-inventory"> Inventory</a>
+                <a href="{{ url_for('customers') }}" class="action-btn btn-customers"> Customers</a>
+                <a href="{{ url_for('kitchen') }}" class="action-btn btn-kitchen"> Kitchen</a>
+                <a href="{{ url_for('reports') }}" class="action-btn btn-reports"> Reports</a>
+                <a href="{{ url_for('employees') }}" class="action-btn btn-employees"> Employees</a>
             </div>
         </div>
 
         {% if low_stock_count > 0 %}
         <div class="alert-section">
-            <h2>⚠️ Low Stock Alerts</h2>
+            <h2>Low Stock Alerts</h2>
             <p style="margin-bottom: 15px; color: #666;">The following items are running low on stock:</p>
             <ul class="alert-list" id="lowStockList">
                 <!-- Will be populated by JavaScript -->

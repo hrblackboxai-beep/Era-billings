@@ -1,23 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/database');
-
-const authMiddleware = (req, res, next) => {
-  const jwt = require('jsonwebtoken');
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const authMiddleware = require('../middleware/auth');
 
 // Daily Sales Report
 router.get('/sales/daily', authMiddleware, async (req, res) => {
@@ -129,6 +113,90 @@ router.get('/sales/monthly', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Monthly sales report error:', error);
     res.status(500).json({ error: 'Failed to generate monthly sales report' });
+  }
+});
+
+// Orders Report: sales by table/zone, average order value and kitchen prep time
+router.get('/orders', authMiddleware, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let dateFilter = '';
+    let dateOnFilter = '';
+    const params = [];
+    if (startDate && endDate) {
+      dateFilter = 'AND DATE(created_at) BETWEEN ? AND ?';
+      dateOnFilter = 'AND DATE(o.created_at) BETWEEN ? AND ?';
+      params.push(startDate, endDate);
+    }
+
+    const summary = await db.get(
+      `SELECT
+        COUNT(*) as totalOrders,
+        COALESCE(SUM(total_amount), 0) as totalRevenue,
+        COALESCE(AVG(total_amount), 0) as averageOrderValue
+       FROM orders
+       WHERE is_deleted = 0 AND status = 'closed' ${dateFilter}`,
+      params
+    );
+
+    const byTable = await db.all(
+      `SELECT
+        COALESCE(table_number, 'Walk-in') as tableNumber,
+        COUNT(*) as orderCount,
+        SUM(total_amount) as revenue
+       FROM orders
+       WHERE is_deleted = 0 AND status = 'closed' ${dateFilter}
+       GROUP BY table_number
+       ORDER BY revenue DESC`,
+      params
+    );
+
+    const byZone = await db.all(
+      `SELECT
+        t.zone,
+        COUNT(o.id) as orderCount,
+        COALESCE(SUM(o.total_amount), 0) as revenue
+       FROM tables t
+       LEFT JOIN orders o
+         ON o.table_id = t.id AND o.status = 'closed' AND o.is_deleted = 0 ${dateOnFilter}
+       GROUP BY t.zone
+       ORDER BY revenue DESC`,
+      params
+    );
+
+    const prepTime = await db.get(
+      `SELECT
+        COUNT(*) as completedTickets,
+        COALESCE(AVG((julianday(prepared_at) - julianday(created_at)) * 24 * 60), 0) as avgMinutes
+       FROM kitchen_orders
+       WHERE status = 'completed' AND prepared_at IS NOT NULL`
+    );
+
+    const kitchenVolume = await db.all(
+      `SELECT
+        station,
+        COUNT(*) as ticketCount,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
+       FROM kitchen_orders
+       GROUP BY station
+       ORDER BY ticketCount DESC`
+    );
+
+    res.json({
+      success: true,
+      report: {
+        period: { startDate, endDate },
+        summary,
+        byTable,
+        byZone,
+        prepTime,
+        kitchenVolume
+      }
+    });
+  } catch (error) {
+    console.error('Orders report error:', error);
+    res.status(500).json({ error: 'Failed to generate orders report' });
   }
 });
 

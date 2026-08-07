@@ -1,24 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
 const db = require('../database/database');
-
-const authMiddleware = (req, res, next) => {
-  const jwt = require('jsonwebtoken');
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const authMiddleware = require('../middleware/auth');
+const kitchenService = require('../services/kitchenService');
+const socketService = require('../services/socketService');
 
 // Get all kitchen orders
 router.get('/orders', authMiddleware, async (req, res) => {
@@ -29,8 +14,14 @@ router.get('/orders', authMiddleware, async (req, res) => {
     const params = [];
 
     if (status) {
-      query += ` AND status = ?`;
-      params.push(status);
+      const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statuses.length === 1) {
+        query += ` AND status = ?`;
+        params.push(statuses[0]);
+      } else if (statuses.length > 1) {
+        query += ` AND status IN (${statuses.map(() => '?').join(', ')})`;
+        params.push(...statuses);
+      }
     }
 
     if (station) {
@@ -55,6 +46,26 @@ router.get('/orders', authMiddleware, async (req, res) => {
   }
 });
 
+// Get a single kitchen order ticket
+router.get('/orders/:id', authMiddleware, async (req, res) => {
+  try {
+    const order = await db.get(`SELECT * FROM kitchen_orders WHERE id = ?`, [req.params.id]);
+    if (!order) {
+      return res.status(404).json({ error: 'Kitchen order not found' });
+    }
+    res.json({
+      success: true,
+      order: {
+        ...order,
+        items: JSON.parse(order.items || '[]')
+      }
+    });
+  } catch (error) {
+    console.error('Get kitchen order error:', error);
+    res.status(500).json({ error: 'Failed to get kitchen order' });
+  }
+});
+
 // Update order status
 router.put('/orders/:id/status', authMiddleware, async (req, res) => {
   try {
@@ -68,12 +79,18 @@ router.put('/orders/:id/status', authMiddleware, async (req, res) => {
     );
 
     // Emit socket event for status update
-    const io = require('../server').io;
     const order = await db.get(`SELECT * FROM kitchen_orders WHERE id = ?`, [req.params.id]);
-    io.emit('order-status-changed', {
+
+    // Keep the parent table order's kitchen status in sync
+    if (order && order.order_id) {
+      await kitchenService.updateOrderKitchenStatus(order.order_id);
+    }
+
+    socketService.emit('order-status-changed', {
       orderId: req.params.id,
       status,
-      orderNumber: order.order_number
+      orderNumber: order ? order.order_number : null,
+      tableNumber: order ? order.table_number : null
     });
 
     res.json({ success: true, message: 'Order status updated' });

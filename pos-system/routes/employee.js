@@ -2,23 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/database');
-
-const authMiddleware = (req, res, next) => {
-  const jwt = require('jsonwebtoken');
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const authMiddleware = require('../middleware/auth');
 
 // Get all employees
 router.get('/', authMiddleware, async (req, res) => {
@@ -56,11 +40,19 @@ router.post('/attendance', authMiddleware, async (req, res) => {
         `UPDATE attendance SET check_out = CURRENT_TIMESTAMP WHERE id = ?`,
         [existing.id]
       );
+      await db.run(
+        `UPDATE employees SET attendance_status = 'absent' WHERE id = ?`,
+        [employeeId]
+      );
     } else {
       await db.run(
         `INSERT INTO attendance (id, employee_id, date, check_in, status)
          VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'present')`,
         [id, employeeId, today]
+      );
+      await db.run(
+        `UPDATE employees SET attendance_status = 'present' WHERE id = ?`,
+        [employeeId]
       );
     }
 

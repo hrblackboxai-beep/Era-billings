@@ -4,6 +4,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/database');
+const authMiddleware = require('../middleware/auth');
+const { jwt: jwtConfig } = require('../config/config');
+
+async function logLogin(username, success, req) {
+  try {
+    await db.run(
+      `INSERT INTO login_logs (id, username, success, ip, user_agent)
+       VALUES (?, ?, ?, ?, ?)`,
+      [uuidv4(), username, success ? 1 : 0, req.ip || null, req.headers['user-agent'] || null]
+    );
+  } catch (err) {
+    console.error('Login log error:', err.message);
+  }
+}
 
 // Login endpoint
 router.post('/login', async (req, res) => {
@@ -20,11 +34,13 @@ router.post('/login', async (req, res) => {
     );
 
     if (!employee) {
+      await logLogin(username, false, req);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const validPassword = bcrypt.compareSync(password, employee.password);
     if (!validPassword) {
+      await logLogin(username, false, req);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -35,9 +51,11 @@ router.post('/login', async (req, res) => {
         username: employee.username, 
         role: employee.role 
       },
-      process.env.JWT_SECRET || 'pos-secret-key-offline',
-      { expiresIn: '8h' }
+      jwtConfig.secret,
+      { expiresIn: jwtConfig.expiresIn }
     );
+
+    await logLogin(username, true, req);
 
     res.json({
       success: true,
@@ -56,23 +74,23 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Recent login attempts (admin only)
+router.get('/login-logs', authMiddleware, authMiddleware.requireRole('admin'), async (req, res) => {
+  try {
+    const logs = await db.all(
+      `SELECT username, success, ip, created_at FROM login_logs ORDER BY created_at DESC LIMIT 50`
+    );
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error('Login logs error:', error);
+    res.status(500).json({ error: 'Failed to get login logs' });
+  }
+});
+
 // Register new employee (admin only)
-router.post('/register', async (req, res) => {
+router.post('/register', authMiddleware, authMiddleware.requireRole('admin'), async (req, res) => {
   try {
     const { username, password, name, email, phone, role, salary } = req.body;
-    
-    // Verify admin token
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
-    const admin = await db.get(`SELECT * FROM employees WHERE id = ?`, [decoded.id]);
-    
-    if (!admin || admin.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     // Check if username exists
     const existing = await db.get(
@@ -101,18 +119,12 @@ router.post('/register', async (req, res) => {
 });
 
 // Get current user profile
-router.get('/profile', async (req, res) => {
+router.get('/profile', authMiddleware, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
     const employee = await db.get(
       `SELECT id, username, name, email, phone, role, salary, created_at 
        FROM employees WHERE id = ?`,
-      [decoded.id]
+      [req.user.id]
     );
 
     if (!employee) {
