@@ -17,6 +17,7 @@ let editingTableId = null;
 let appSettings = {};
 let activeOrder = null;
 let kitchenStation = 'all';
+let currentPage = 'billing';
 
 // API Base URL
 const API_URL = window.location.origin + '/api';
@@ -292,6 +293,7 @@ function applyRoleGuards() {
 // ==================== NAVIGATION ====================
 
 function navigateToPage(pageName) {
+    currentPage = pageName;
     document.querySelectorAll('.nav-menu li').forEach(item => {
         item.classList.toggle('active', item.dataset.page === pageName);
     });
