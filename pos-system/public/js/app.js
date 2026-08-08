@@ -49,11 +49,17 @@ function apiHeaders(extra = {}) {
     }, extra);
 }
 
+const TOAST_ICONS = {
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+};
+
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.textContent = message;
+    toast.innerHTML = `${TOAST_ICONS[type] || TOAST_ICONS.info}<span>${esc(message)}</span>`;
     container.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 10);
     setTimeout(() => {
@@ -84,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     setupEventListeners();
     initializeSocket();
+    setInterval(refreshKotTimers, 30000);
 });
 
 function setupEventListeners() {
@@ -350,6 +357,35 @@ async function loadProducts() {
     }
 }
 
+const CATEGORY_COLORS = {
+    food: '#f97316', beverage: '#0ea5e9', dessert: '#ec4899',
+    snack: '#eab308', main: '#10b981', default: '#6366f1'
+};
+
+function categoryColor(category) {
+    const c = (category || '').toLowerCase();
+    for (const key of Object.keys(CATEGORY_COLORS)) {
+        if (c.includes(key)) return CATEGORY_COLORS[key];
+    }
+    return CATEGORY_COLORS.default;
+}
+
+function productCardHtml(product, disabled = false) {
+    const outOfStock = disabled || (product.stock_quantity || 0) <= 0;
+    const lowStock = !outOfStock && (product.stock_quantity || 0) <= (product.reorder_level || 0);
+    const color = categoryColor(product.category);
+    const cat = product.category ? esc(product.category) : '';
+
+    return `
+        <div class="product-cat" style="--cat-color:${color}">${cat}</div>
+        <div class="product-card-name">${esc(product.name)}</div>
+        <div class="price">${formatMoney(product.price)}</div>
+        <div class="stock ${lowStock ? 'low' : ''} ${outOfStock ? 'out' : ''}">
+            ${outOfStock ? 'Out of stock' : `Stock: ${product.stock_quantity}`}
+        </div>
+    `;
+}
+
 function renderProductsList() {
     const container = document.getElementById('products-list');
     container.innerHTML = '';
@@ -364,15 +400,7 @@ function renderProductsList() {
         card.onclick = () => addToCart(product);
 
         const outOfStock = (product.stock_quantity || 0) <= 0;
-        const lowStock = !outOfStock && (product.stock_quantity || 0) <= (product.reorder_level || 0);
-
-        card.innerHTML = `
-            <div class="product-card-name">${esc(product.name)}</div>
-            <div class="price">${formatMoney(product.price)}</div>
-            <div class="stock ${lowStock ? 'low' : ''}">
-                ${outOfStock ? 'Out of stock' : `Stock: ${product.stock_quantity}`}
-            </div>
-        `;
+        card.innerHTML = productCardHtml(product, outOfStock);
         if (outOfStock) card.classList.add('disabled');
 
         container.appendChild(card);
@@ -394,11 +422,7 @@ function filterProductsByQuery(query) {
         const card = document.createElement('div');
         card.className = 'product-card';
         card.onclick = () => addToCart(product);
-        card.innerHTML = `
-            <div class="product-card-name">${esc(product.name)}</div>
-            <div class="price">${formatMoney(product.price)}</div>
-            <div class="stock">Stock: ${product.stock_quantity || 0}</div>
-        `;
+        card.innerHTML = productCardHtml(product);
         container.appendChild(card);
     });
 }
@@ -463,6 +487,19 @@ function addToCart(product) {
     }
 
     renderCart();
+    flashProductCard(product.name);
+    updateCartBadge();
+}
+
+function flashProductCard(productName) {
+    const card = Array.from(document.querySelectorAll('.product-card')).find(
+        el => el.querySelector('.product-card-name') && el.querySelector('.product-card-name').textContent.trim() === productName
+    );
+    if (card) {
+        card.classList.remove('just-added');
+        void card.offsetWidth;
+        card.classList.add('just-added');
+    }
 }
 
 function isKitchenCategory(category) {
@@ -617,7 +654,17 @@ function updateTotals() {
     document.getElementById('tax-amount').textContent = formatMoney(taxAmount);
     document.getElementById('grand-total').textContent = formatMoney(total);
 
+    updateCartBadge();
+
     return { subtotal, discountAmount, taxAmount, total };
+}
+
+function updateCartBadge() {
+    const badge = document.getElementById('cart-badge');
+    if (!badge) return;
+    const count = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    badge.textContent = count;
+    badge.hidden = count === 0;
 }
 
 async function processPayment() {
@@ -1968,6 +2015,28 @@ async function loadKitchenOrders() {
     }
 }
 
+function kotElapsedHtml(order) {
+    const created = new Date(order.created_at).getTime();
+    const mins = Math.max(0, Math.floor((Date.now() - created) / 60000));
+    return `
+        <span class="kot-elapsed" data-created="${created}" title="Time since order was placed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="kot-elapsed-text">${mins}m</span>
+        </span>
+    `;
+}
+
+function refreshKotTimers() {
+    document.querySelectorAll('.kot-elapsed').forEach(el => {
+        const created = parseInt(el.getAttribute('data-created'), 10);
+        if (isNaN(created)) return;
+        const mins = Math.max(0, Math.floor((Date.now() - created) / 60000));
+        const text = el.querySelector('.kot-elapsed-text');
+        if (text) text.textContent = `${mins}m`;
+        el.classList.toggle('stale', mins >= 15);
+    });
+}
+
 function renderKitchenBoard(orders) {
     const board = document.getElementById('kds-board');
     board.innerHTML = '';
@@ -1996,7 +2065,7 @@ function renderKitchenBoard(orders) {
                 <span class="kot-number">${esc(order.order_number)}</span>
                 <span class="kot-station">${esc(order.station || 'main')}</span>
                 ${order.table_number ? `<span class="kot-table-badge">Table ${esc(order.table_number)}</span>` : ''}
-                <span class="kot-time">${new Date(order.created_at).toLocaleTimeString()}</span>
+                ${kotElapsedHtml(order)}
             </div>
             ${notes}
             <div class="kot-items">${itemsHtml}</div>
@@ -2010,6 +2079,7 @@ function renderKitchenBoard(orders) {
 
         board.appendChild(card);
     });
+    refreshKotTimers();
 }
 
 function printKot(kotId) {
