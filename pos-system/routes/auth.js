@@ -3,10 +3,20 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const { body } = require('express-validator');
 const db = require('../database/database');
+const authMiddleware = require('../middleware/auth');
+const validate = require('../middleware/validation');
+const config = require('../config');
 
 // Login endpoint
-router.post('/login', async (req, res) => {
+router.post('/login',
+  [
+    body('username').notEmpty().withMessage('Username is required'),
+    body('password').notEmpty().withMessage('Password is required')
+  ],
+  validate,
+  async (req, res) => {
   try {
     const { username, password } = req.body;
     
@@ -35,7 +45,7 @@ router.post('/login', async (req, res) => {
         username: employee.username, 
         role: employee.role 
       },
-      process.env.JWT_SECRET || 'pos-secret-key-offline',
+      config.jwtSecret,
       { expiresIn: '8h' }
     );
 
@@ -57,22 +67,25 @@ router.post('/login', async (req, res) => {
 });
 
 // Register new employee (admin only)
-router.post('/register', async (req, res) => {
-  try {
-    const { username, password, name, email, phone, role, salary } = req.body;
-    
-    // Verify admin token
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
-    const admin = await db.get(`SELECT * FROM employees WHERE id = ?`, [decoded.id]);
-    
-    if (!admin || admin.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
+router.post('/register', 
+  authMiddleware,
+  [
+    body('username').notEmpty().withMessage('Username is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('name').notEmpty().withMessage('Name is required'),
+    body('role').optional(),
+    body('email').optional().isEmail().withMessage('Valid email is required'),
+    body('phone').optional()
+  ],
+  validate,
+  async (req, res) => {
+    try {
+      const { username, password, name, email, phone, role, salary } = req.body;
+      
+      // Verify admin token - already done by authMiddleware
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
 
     // Check if username exists
     const existing = await db.get(
@@ -101,18 +114,12 @@ router.post('/register', async (req, res) => {
 });
 
 // Get current user profile
-router.get('/profile', async (req, res) => {
+router.get('/profile', authMiddleware, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
     const employee = await db.get(
       `SELECT id, username, name, email, phone, role, salary, created_at 
        FROM employees WHERE id = ?`,
-      [decoded.id]
+      [req.user.id]
     );
 
     if (!employee) {
