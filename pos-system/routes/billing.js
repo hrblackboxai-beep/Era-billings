@@ -1,28 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+const { body, validationResult } = require('express-validator');
 const db = require('../database/database');
-
-// Middleware to verify token
-const authMiddleware = (req, res, next) => {
-  const jwt = require('jsonwebtoken');
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pos-secret-key-offline');
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const authMiddleware = require('../middleware/auth');
+const validate = require('../middleware/validation');
 
 // Create bill (checkout)
-router.post('/create', authMiddleware, async (req, res) => {
+router.post('/create', 
+  authMiddleware,
+  [
+    body('items').isArray().withMessage('Items must be an array'),
+    body('items.*.productId').notEmpty().withMessage('Product ID is required'),
+    body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
+    body('paymentMethod').notEmpty().withMessage('Payment method is required'),
+    body('paidAmount').isFloat({ min: 0 }).withMessage('Paid amount must be positive')
+  ],
+  validate,
+  async (req, res) => {
   try {
     const { 
       customerId, 

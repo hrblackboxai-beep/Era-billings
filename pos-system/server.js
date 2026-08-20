@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
+const config = require('./config');
 
 // Initialize Express app
 const app = express();
@@ -17,7 +19,13 @@ const io = new Server(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Custom middleware
+const logger = require('./middleware/logger');
+const errorHandler = require('./middleware/errorHandler');
+app.use(logger);
 
 // Import and initialize database first
 const dbModule = require('./database/database');
@@ -41,6 +49,7 @@ const kitchenRoutes = require('./routes/kitchen');
 const reportRoutes = require('./routes/reports');
 const authRoutes = require('./routes/auth');
 const paymentRoutes = require('./routes/payment');
+const analyticsRoutes = require('./routes/analytics');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -51,6 +60,7 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/kitchen', kitchenRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Socket.IO for real-time updates
 io.on('connection', (socket) => {
@@ -74,11 +84,22 @@ io.on('connection', (socket) => {
   });
 });
 
+// Error handling middleware (must be last)
+app.use(errorHandler);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found'
+  });
+});
+
 // Start server
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`POS Server running on http://localhost:${PORT}`);
+server.listen(config.port, () => {
+  console.log(`POS Server running on http://localhost:${config.port}`);
   console.log('Offline mode enabled - All data stored locally in SQLite');
+  console.log(`Environment: ${config.nodeEnv}`);
 });
 
 module.exports = { app, io };
